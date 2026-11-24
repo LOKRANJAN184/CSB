@@ -10,10 +10,6 @@ module.exports = async (req, res) => {
     let dbStatus = 'disconnected';
     let dbError = null;
 
-    const rawUri = process.env.MONGODB_URI || '';
-    const trimmedUri = rawUri.trim().replace(/^["']|["']$/g, '');
-    const prefix = trimmedUri.substring(0, 15);
-
     try {
       await connectDB();
       dbStatus = 'connected';
@@ -24,8 +20,8 @@ module.exports = async (req, res) => {
     const hasUri = !!process.env.MONGODB_URI;
     let safePreview = 'Not Set';
     if (hasUri) {
-      const parts = trimmedUri.split('@');
-      safePreview = parts.length > 1 ? `...@${parts[1].split('?')[0]}` : 'Set (no @ found)';
+      const parts = (process.env.MONGODB_URI || '').split('@');
+      safePreview = parts.length > 1 ? `...@${parts[1].split('?')[0]}` : 'Set';
     }
 
     return res.status(dbStatus === 'connected' ? 200 : 503).json({
@@ -33,8 +29,6 @@ module.exports = async (req, res) => {
       mongodb: dbStatus,
       error: dbError,
       hasMongoUri: hasUri,
-      uriStart: prefix,
-      uriLength: rawUri.length,
       uriPreview: safePreview,
       hasJwtSecret: !!process.env.JWT_SECRET,
       readyState: mongoose.connection.readyState,
@@ -53,7 +47,7 @@ module.exports = async (req, res) => {
     return res.status(503).json({
       success: false,
       code: 'DB_CONNECTION_ERROR',
-      message: `Database connection error: ${err.message}. If using MongoDB Atlas, please verify: 1) MongoDB Atlas Network Access has 0.0.0.0/0 allowed, 2) MONGODB_URI starts with mongodb+srv://, and 3) password in connection string is correct.`,
+      message: `Database connection error: ${err.message}. If using MongoDB Atlas, please verify: 1) MongoDB Atlas Network Access has 0.0.0.0/0 allowed, 2) MONGODB_URI starts with mongodb+srv://, and 3) database user credentials are valid.`,
       error: err.message,
     });
   }
