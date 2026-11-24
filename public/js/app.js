@@ -298,18 +298,6 @@ const app = (() => {
     const branchName = API.getBranchName() || (state.branches[0] ? state.branches[0].name : 'Samayanallur Branch');
     const headerName = document.getElementById('header-branch-name');
     if (headerName) headerName.textContent = branchName;
-
-    const switcher = document.getElementById('header-branch-select');
-    if (switcher) {
-      if (state.currentUser && state.currentUser.role === 'owner' && state.branches && state.branches.length > 0) {
-        switcher.innerHTML = state.branches.map(b => `<option value="${b._id}" ${b._id === API.getBranchId() ? 'selected' : ''}>${b.name}</option>`).join('');
-        switcher.classList.remove('hidden');
-        if (headerName) headerName.classList.add('hidden');
-      } else {
-        switcher.classList.add('hidden');
-        if (headerName) headerName.classList.remove('hidden');
-      }
-    }
   };
 
   const onLoginBranchChange = (branchId) => {

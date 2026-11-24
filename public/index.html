@@ -269,15 +269,10 @@
           <span id="theme-toggle-icon" class="flex items-center justify-center"></span>
         </button>
 
-        <!-- Active Branch Badge & Owner Switcher -->
-        <div id="header-branch-container"
-          class="flex items-center gap-1 bg-black/25 border border-white/20 px-2.5 py-1 rounded-full text-xs font-bold text-amber-100">
-          <span class="w-3.5 h-3.5 flex items-center shrink-0"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/></svg></span>
-          <span id="header-branch-name" class="truncate max-w-[140px]">Samayanallur Branch</span>
-          <select id="header-branch-select" onchange="app.onHeaderBranchSwitch(this.value)"
-            class="hidden bg-amber-900/80 text-amber-100 font-bold text-[11px] rounded px-1 py-0.5 border border-amber-500/50 focus:outline-none cursor-pointer">
-            <!-- Populated for Owner -->
-          </select>
+        <!-- Active Branch Badge & Owner Switcher (Hidden in header; branch selection is done on Login screen) -->
+        <div id="header-branch-container" class="hidden">
+          <span id="header-branch-name">Samayanallur Branch</span>
+          <select id="header-branch-select" class="hidden"></select>
         </div>
 
         <button id="btn-user-switch" onclick="app.showAuthModal()"
