@@ -94,8 +94,8 @@ const API = (() => {
       headers['Content-Type'] = 'application/json';
     }
 
-    // Set timeout to prevent hanging when mobile network or Wi-Fi is slow/unreachable
-    const timeoutMs = options.timeout || (endpoint === '/api/branches' ? 3000 : 8000);
+    // Set timeout to prevent hanging on network drops while allowing serverless cold starts
+    const timeoutMs = options.timeout || (endpoint === '/api/branches' ? 12000 : 20000);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

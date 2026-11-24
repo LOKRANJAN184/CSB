@@ -283,36 +283,42 @@ router.post('/login', async (req, res) => {
 
     let selectedBranch = null;
     if (user.role === 'manager') {
-      selectedBranch = user.branchId ? await Branch.findById(user.branchId) : await Branch.findOne({ code: 'MAIN' });
+      selectedBranch = user.branchId ? await Branch.findById(user.branchId).catch(() => null) : null;
+      if (!selectedBranch) selectedBranch = await Branch.findOne({ code: 'MAIN' });
     } else {
       const bId = (req.body.branchId || req.headers['x-branch-id'] || '').toString().trim();
-      selectedBranch = bId ? await Branch.findById(bId) : await Branch.findOne({ code: 'MAIN' });
+      selectedBranch = bId ? await Branch.findById(bId).catch(() => null) : null;
+      if (!selectedBranch) selectedBranch = await Branch.findOne({ code: 'MAIN' });
       if (!selectedBranch) selectedBranch = await Branch.findOne({});
     }
 
     const token = generateToken(user, selectedBranch ? selectedBranch._id : user.branchId);
 
-    // Audit log login
-    await logAudit({
-      branchId: selectedBranch ? selectedBranch._id : user.branchId,
-      branchName: selectedBranch ? selectedBranch.name : 'Samayanallur Branch',
-      module: user.role === 'manager' ? 'Security' : 'Auth',
-      action: 'LOGIN',
-      fieldName: user.role === 'manager' ? 'DeviceLock' : 'Session',
-      newValue: user.role === 'manager' && user.approvedDevice
-        ? `${user.approvedDevice.deviceName || 'Shop Device'} (${user.approvedDevice.deviceId || ''})`
-        : null,
-      performedBy: {
-        userId: user._id,
-        name: user.name,
-        role: user.role,
-        branchId: selectedBranch ? selectedBranch._id : user.branchId,
+    // Audit log login (non-blocking)
+    try {
+      await logAudit({
+        branchId: selectedBranch ? selectedBranch._id : (user.branchId || null),
         branchName: selectedBranch ? selectedBranch.name : 'Samayanallur Branch',
-      },
-      description: user.role === 'manager' && user.approvedDevice
-        ? `${user.name} logged in successfully from shop device "${user.approvedDevice.deviceName || 'Shop Device'}" at ${selectedBranch ? selectedBranch.name : 'Shop'}.`
-        : `${user.name} (${user.role.toUpperCase()}) logged in successfully to ${selectedBranch ? selectedBranch.name : 'Samayanallur Branch'}.`,
-    });
+        module: user.role === 'manager' ? 'Security' : 'Auth',
+        action: 'LOGIN',
+        fieldName: user.role === 'manager' ? 'DeviceLock' : 'Session',
+        newValue: user.role === 'manager' && user.approvedDevice
+          ? `${user.approvedDevice.deviceName || 'Shop Device'} (${user.approvedDevice.deviceId || ''})`
+          : null,
+        performedBy: {
+          userId: user._id.toString(),
+          name: user.name,
+          role: user.role,
+          branchId: selectedBranch ? selectedBranch._id : user.branchId,
+          branchName: selectedBranch ? selectedBranch.name : 'Samayanallur Branch',
+        },
+        description: user.role === 'manager' && user.approvedDevice
+          ? `${user.name} logged in successfully from shop device "${user.approvedDevice.deviceName || 'Shop Device'}" at ${selectedBranch ? selectedBranch.name : 'Shop'}.`
+          : `${user.name} (${user.role.toUpperCase()}) logged in successfully to ${selectedBranch ? selectedBranch.name : 'Samayanallur Branch'}.`,
+      });
+    } catch (auditErr) {
+      console.warn('[Audit Warning] Non-fatal audit log during login:', auditErr.message);
+    }
 
     res.json({
       success: true,
@@ -341,7 +347,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('[AuthRoute] Login error:', err);
-    res.status(500).json({ success: false, message: 'Internal server error during login.' });
+    res.status(500).json({ success: false, message: err.message || 'Internal server error during login.' });
   }
 });
 

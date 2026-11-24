@@ -11,6 +11,7 @@ const connectDB = require('./config/db');
 const { initSocket } = require('./socket');
 const User = require('./models/User');
 const Staff = require('./models/Staff');
+const Branch = require('./models/Branch');
 
 // Initialize Express app
 const app = express();
@@ -30,9 +31,35 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Serve public frontend
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Seed default users and staff
+// Seed default users, branches, and staff
 const seedInitialData = async () => {
   try {
+    // 1. Ensure Branches exist
+    let mainBranch = await Branch.findOne({ code: 'MAIN' });
+    let vadipattiBranch = await Branch.findOne({ code: 'VADIPATTI' });
+
+    if (!mainBranch) {
+      mainBranch = await Branch.create({
+        name: 'Samayanallur Branch',
+        code: 'MAIN',
+        address: 'Main Road, Samayanallur',
+        phone: '9025351545',
+        isActive: true,
+      });
+      console.log('[Seed] Created Samayanallur Branch');
+    }
+
+    if (!vadipattiBranch) {
+      vadipattiBranch = await Branch.create({
+        name: 'Vadipatti Branch',
+        code: 'VADIPATTI',
+        address: 'Bus Stand Road, Vadipatti',
+        phone: '9976885361',
+        isActive: true,
+      });
+      console.log('[Seed] Created Vadipatti Branch');
+    }
+
     const userCount = await User.countDocuments();
     if (userCount === 0) {
       console.log('[Seed] Seeding initial Owner and Shop Manager accounts...');
@@ -70,17 +97,28 @@ const seedInitialData = async () => {
         },
         {
           username: 'manager',
-          name: 'Shop Manager',
+          name: 'Shop Manager (Samayanallur Branch)',
           role: 'manager',
+          branchId: mainBranch._id,
           pin: managerPin,
           password: managerPass,
-          phone: '9840054321',
+          phone: '9025351545',
+        },
+        {
+          username: 'manager_vadipatti',
+          name: 'Shop Manager (Vadipatti Branch)',
+          role: 'manager',
+          branchId: vadipattiBranch._id,
+          pin: managerPin,
+          password: managerPass,
+          phone: '9976885361',
         },
       ]);
 
       console.log('[Seed] Default accounts created:');
       console.log('       1. Owner: Mobile + Dedicated PIN per number');
-      console.log('       2. Shop Manager: PIN 8734');
+      console.log('       2. Shop Manager (Samayanallur): PIN 8734');
+      console.log('       3. Shop Manager (Vadipatti): PIN 8734');
     } else {
       // Ensure Owner has dedicated PINs per mobile number
       const defaultPhonePins = {
