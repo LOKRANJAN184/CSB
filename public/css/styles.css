@@ -1,0 +1,300 @@
+/* Chendurar Sweets & Bakery - Mobile Stylesheet */
+
+/* Mobile viewport and smooth scrolling */
+html, body {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Mobile Safe Area Insets for Phone Status Bar & Notch */
+header.app-header {
+  padding-top: max(env(safe-area-inset-top, 0px), 48px) !important;
+}
+
+@media (min-width: 640px) {
+  header.app-header {
+    padding-top: max(env(safe-area-inset-top, 0px), 14px) !important;
+  }
+}
+
+/* Full-Screen Login Gatekeeper View */
+#view-login-gate {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: max(env(safe-area-inset-top, 0px) + 24px, 48px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px) + 24px, 32px);
+  transition: opacity 0.25s ease-in-out;
+}
+
+.dark #view-login-gate {
+  background-color: #0b1120 !important;
+}
+
+.dark #modal-auth {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+#view-app-shell {
+  transition: opacity 0.25s ease-in-out;
+}
+
+/* Big Touch Keypad Buttons */
+.numpad-btn {
+  height: 58px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.numpad-btn:active {
+  background-color: #fde68a;
+  transform: scale(0.94);
+  box-shadow: none;
+}
+
+/* Nav Tab Active State */
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.nav-tab.active {
+  color: #b45309;
+}
+.nav-tab.active svg {
+  transform: scale(1.15);
+  transition: transform 0.15s ease;
+}
+
+/* Bottom Nav Grid Layouts */
+.nav-grid-owner {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+}
+.nav-grid-manager {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+/* Attendance Status Buttons */
+.att-btn {
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1.5px solid transparent;
+  transition: all 0.15s ease;
+  flex: 1;
+  text-align: center;
+}
+
+.att-btn-present {
+  background-color: #f0fdf4;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.att-btn-present.selected {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #15803d !important;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.35);
+}
+
+.att-btn-half {
+  background-color: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.att-btn-half.selected {
+  background-color: #f59e0b !important;
+  color: #ffffff !important;
+  border-color: #d97706 !important;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35);
+}
+
+.att-btn-absent {
+  background-color: #fff1f2;
+  color: #9f1239;
+  border-color: #fecdd3;
+}
+.att-btn-absent.selected {
+  background-color: #e11d48 !important;
+  color: #ffffff !important;
+  border-color: #be123c !important;
+  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.35);
+}
+
+/* Clock Picker Selection Buttons */
+.clock-hour-btn.selected, .clock-min-btn.selected {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);
+  transform: scale(1.06);
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* ========================================================== */
+/* DARK MODE STYLES & THEME OVERRIDES                        */
+/* ========================================================== */
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b0f19 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Surfaces and Cards */
+.dark .bg-white {
+  background-color: #151c2c !important;
+}
+.dark .bg-slate-50 {
+  background-color: #0f172a !important;
+}
+.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+.dark .bg-amber-50, .dark .bg-amber-50\/80 {
+  background-color: rgba(69, 26, 3, 0.25) !important;
+}
+.dark .bg-blue-50 {
+  background-color: rgba(30, 58, 138, 0.25) !important;
+}
+.dark .bg-emerald-50 {
+  background-color: rgba(6, 78, 59, 0.25) !important;
+}
+.dark .bg-rose-50 {
+  background-color: rgba(136, 19, 55, 0.25) !important;
+}
+
+/* Borders */
+.dark .border-slate-200,
+.dark .border-slate-100,
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-slate-300 {
+  border-color: #243048 !important;
+}
+.dark .border-amber-200\/80 {
+  border-color: #78350f !important;
+}
+
+/* Text Colors */
+.dark .text-slate-900,
+.dark .text-slate-800 {
+  color: #f8fafc !important;
+}
+.dark .text-slate-700,
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+.dark .text-amber-900,
+.dark .text-amber-950 {
+  color: #fbbf24 !important;
+}
+.dark .text-blue-900 {
+  color: #93c5fd !important;
+}
+.dark .text-emerald-900 {
+  color: #6ee7b7 !important;
+}
+.dark .text-rose-900 {
+  color: #fda4af !important;
+}
+
+/* Form Controls and Inputs */
+.dark input[type="text"],
+.dark input[type="number"],
+.dark input[type="tel"],
+.dark input[type="password"],
+.dark input[type="date"],
+.dark select,
+.dark textarea {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Keypad in Dark Mode */
+.dark .numpad-btn {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.dark .numpad-btn:active {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
+}
+
+/* Navigation in Dark Mode */
+.dark nav {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border-color: #243048 !important;
+}
+.dark .nav-tab {
+  color: #94a3b8 !important;
+}
+.dark .nav-tab.active {
+  color: #fbbf24 !important;
+}
+
+/* Modals */
+.dark .modal-backdrop > div {
+  background-color: #151c2c !important;
+  border-color: #243048 !important;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}

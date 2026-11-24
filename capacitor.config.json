@@ -1,0 +1,13 @@
+{
+  "appId": "com.chendurar.sweets",
+  "appName": "Chendurar Sweets & Bakery",
+  "webDir": "public",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
+

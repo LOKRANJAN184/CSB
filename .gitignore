@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+package-lock.json.bak
+
+# Local Binaries and Embedded Tools (several GBs)
+.tools/
+data/
+
+# Environment secrets
+.env
+.env.local
+
+# Build artifacts & temp files
+*.bak
+*.log
+
+# Android & Gradle Build caches
+.gradle/
+android/.gradle/
+android/app/build/
+android/build/
+android/captures/
+android/.idea/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+
+*.apk

@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/socket.io/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/Chendurar-Bakery.apk",
+      "destination": "/public/Chendurar-Bakery.apk"
+    },
+    {
+      "source": "/((?!api|public|images|css|js|Chendurar-Bakery.apk).*)",
+      "destination": "/public/index.html"
+    }
+  ]
+}
+
