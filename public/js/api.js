@@ -14,6 +14,11 @@ export class ApiError extends Error {
 }
 
 let onSessionLost = () => {};
+
+// The router gives us a signal that fires when you leave the current screen.
+// Unfinished GET requests from that screen are then cancelled.
+let routeSignal = null;
+export const setRouteSignal = (signal) => (routeSignal = signal);
 export const setSessionLostHandler = (fn) => (onSessionLost = fn);
 
 /**
@@ -40,16 +45,25 @@ export async function api(path, { method = 'GET', body, branchId, blob = false, 
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
+  // Only reads are cancelled on navigation — a save must always finish.
+  const leave = method === 'GET' && !blob && routeSignal;
+  const onLeave = () => ctrl.abort('left-screen');
+  if (leave) {
+    if (leave.aborted) onLeave();
+    else leave.addEventListener('abort', onLeave, { once: true });
+  }
   let res;
   try {
     res = await fetch(apiBase() + path, { method, headers, body: payload, signal: ctrl.signal });
   } catch (err) {
+    if (ctrl.signal.reason === 'left-screen') throw new ApiError('Cancelled', { code: 'CANCELLED' });
     throw new ApiError(
       navigator.onLine ? 'Could not reach the server. Please try again.' : 'You are offline. Check the internet connection.',
       { code: 'NETWORK' }
     );
   } finally {
     clearTimeout(timer);
+    if (leave) leave.removeEventListener('abort', onLeave);
   }
 
   if (blob && res.ok) return res.blob();

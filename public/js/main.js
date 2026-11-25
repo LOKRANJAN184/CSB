@@ -9,7 +9,7 @@ import { h, mount } from './ui/dom.js';
 import { icon } from './ui/icons.js';
 import { confirmSheet, closeTopSheet, openSheet } from './ui/sheet.js';
 import { toast } from './ui/toast.js';
-import { api, setSessionLostHandler } from './api.js';
+import { api, setSessionLostHandler, setRouteSignal } from './api.js';
 import { store } from './store.js';
 import { renderLogin } from './screens/login.js';
 import { applyTheme } from './lib/theme.js';
@@ -45,6 +45,8 @@ let guard = null;            // returns a message if the current screen has unsa
 let currentPath = null;
 let ignoreNextHash = false;
 let renderId = 0;
+let routeAbort = null;
+let navigating = false;     // a "leave without saving?" question is open
 let sessionTimer;
 
 // ---------------------------------------------------------------------------
@@ -130,14 +132,22 @@ async function route(force = false) {
   els.back.hidden = true;
   els.branch.hidden = !(store.isOwner && r.branch && store.branches.length > 1);
   els.branch.replaceChildren(store.branch?.name || 'Branch', icon('chevronDown'));
-  els.content.replaceChildren();
+  // Each visit gets a brand-new container. If the previous screen is still
+  // loading when you leave, its late result is drawn into its own (now
+  // detached) container instead of on top of the new screen.
+  const root = h('div', { class: 'screen' });
+  els.content.replaceChildren(root);
   window.scrollTo(0, 0);
+  // Cancel the old screen's unfinished downloads so rapid taps don't pile up.
+  routeAbort?.abort();
+  routeAbort = new AbortController();
+  setRouteSignal(routeAbort.signal);
 
   const ctx = {
-    root: els.content,
+    root,
     params: m.groups || {},
     branchName: store.branch?.name || '',
-    navigate: (to) => (location.hash = to),
+    navigate: (to) => go('#' + to.replace(/^#/, '')),
     logout,
     setGuard: (fn) => { if (id === renderId) guard = fn; },
     setTitle: (title, subtitle = '', opts = {}) => {
@@ -158,7 +168,36 @@ async function route(force = false) {
   }
 }
 
-// Ask before leaving a screen with unsaved changes.
+/**
+ * All in-app navigation goes through here.
+ * - asks "leave without saving?" BEFORE moving (not after)
+ * - tapping the tab you're already on does nothing
+ * - bottom tabs replace the history entry, so spamming tabs doesn't build a
+ *   long back-button trail
+ */
+async function go(hash, { replace = false } = {}) {
+  if (navigating || hash === location.hash) return;
+  const msg = guard?.();
+  if (msg) {
+    navigating = true;
+    const leave = await confirmSheet({ title: 'Unsaved changes', message: msg, confirmLabel: 'Leave without saving', danger: true });
+    navigating = false;
+    if (!leave) return;
+  }
+  guard = null;
+  if (replace) location.replace(hash);
+  else location.hash = hash;
+}
+
+// Every in-app link (<a href="#/...">) uses go() instead of the browser default.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[href^="#/"]');
+  if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey) return;
+  e.preventDefault();
+  go(a.getAttribute('href'), { replace: a.classList.contains('tab') });
+});
+
+// The browser/Android back button changes the hash without go(); still protect unsaved work.
 addEventListener('hashchange', async () => {
   if (ignoreNextHash) { ignoreNextHash = false; return; }
   const msg = guard?.();
@@ -233,7 +272,7 @@ onBackButton(() => {
   if (closeTopSheet()) return;
   const path = location.hash.replace(/^#/, '');
   if (!store.session || path === '/sales' || path === '') exitApp();
-  else if (['/attendance', '/records', '/reports', '/more'].some((p) => path.startsWith(p))) location.hash = '/sales';
+  else if (['/attendance', '/records', '/reports', '/more'].some((p) => path.startsWith(p))) go('#/sales', { replace: true });
   else history.back();
 });
 
