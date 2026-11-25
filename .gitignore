@@ -9,6 +9,8 @@ data/
 # Environment secrets
 .env
 .env.local
+atlas-credentials.env
+*.credentials*
 
 # Build artifacts & temp files
 *.bak
