@@ -74,6 +74,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
+          # actions/checkout turns annotated tags into lightweight ones; re-fetch to read the tag message
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
           git for-each-ref "refs/tags/$TAG" --format='%(contents)' > notes.md
           [ -s notes.md ] || echo "Bug fixes and improvements." > notes.md
           gh release create "$TAG" Chendurar-Bakery.apk --title "$TAG" --notes-file notes.md
