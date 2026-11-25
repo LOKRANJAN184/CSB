@@ -1,0 +1,13 @@
+# Files Vercel should NOT upload (keeps deploys small and secrets local)
+.env
+.env.*
+!.env.example
+*.env
+.tools
+data
+uploads
+android
+test
+node_modules
+*.apk
+*.keystore

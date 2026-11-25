@@ -7,7 +7,6 @@ name: Release APK
 on:
   push:
     tags: ['v*']
-    branches: [rebuild]   # test builds while the rebuild branch is open
   workflow_dispatch:      # manual run from the Actions tab (test build)
 
 permissions:

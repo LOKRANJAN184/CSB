@@ -11,7 +11,7 @@ const FONT_REGULAR = path.join(FONT_DIR, 'AnekTamil-Regular.ttf');
 const FONT_BOLD = path.join(FONT_DIR, 'AnekTamil-SemiBold.ttf');
 const hasTamilFont = fs.existsSync(FONT_REGULAR) && fs.existsSync(FONT_BOLD);
 
-const COLORS = { ink: '#2a1d14', muted: '#7a6a5d', brand: '#8a3b12', line: '#e6dcd2', zebra: '#faf6f1', bad: '#b3261e', good: '#1f7a3f' };
+const COLORS = { ink: '#2a1d14', muted: '#7a6a5d', brand: '#2b54a0', line: '#e6dcd2', zebra: '#faf6f1', bad: '#b3261e', good: '#1f7a3f' };
 
 const inr = (n) => 'Rs. ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const dmy = (d) => (d ? d.split('-').reverse().join('/') : '');
