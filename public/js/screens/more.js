@@ -19,7 +19,7 @@ export default async function moreScreen(ctx) {
   const updateBtn = h('button', { class: 'row', onclick: () => busy(updateBtn, runUpdateCheck) }, icon('download'), h('div', { class: 'row__main' }, h('strong', null, 'App version'), versionRow));
 
   async function runUpdateCheck(manual = true) {
-    const r = await checkForUpdate();
+    const r = await checkForUpdate({ fresh: manual });
     if (r.hasUpdate) {
       versionRow.textContent = `v${r.current} → v${r.latest.version} available`;
       if (manual) openUpdateSheet(r);

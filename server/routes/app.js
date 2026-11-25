@@ -10,12 +10,17 @@ const env = require('../config/env');
 const router = express.Router();
 let cache = { at: 0, data: null };
 
-async function fetchLatestRelease() {
-  if (cache.data && Date.now() - cache.at < 5 * 60_000) return cache.data; // GitHub rate-limits us
+// GitHub allows 60 unauthenticated checks per hour per server IP, so we remember
+// the answer for a minute. `fresh` (the manual "check for updates" button)
+// skips the memory, but at most once every 15 seconds.
+async function fetchLatestRelease(fresh = false) {
+  const age = Date.now() - cache.at;
+  if (cache.data && (age < 15_000 || (!fresh && age < 60_000))) return cache.data;
   const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'bakery-app-update-check' };
   if (env.githubToken) headers.Authorization = `Bearer ${env.githubToken}`;
   const r = await fetch(`https://api.github.com/repos/${env.githubRepo}/releases/latest`, { headers });
   if (r.status === 404) return null; // no releases yet
+  if (r.status === 403 && cache.data) return cache.data; // rate-limited: use the last answer
   if (!r.ok) throw new Error(`GitHub responded ${r.status}`);
   const rel = await r.json();
   const apk = (rel.assets || []).find((a) => a.name.endsWith('.apk'));
@@ -34,7 +39,8 @@ async function fetchLatestRelease() {
 // GET /api/app/latest
 router.get('/latest', async (req, res) => {
   try {
-    res.json({ ok: true, latest: await fetchLatestRelease() });
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, latest: await fetchLatestRelease(req.query.fresh === '1') });
   } catch (err) {
     res.status(502).json({ ok: false, code: 'UPDATE_CHECK_FAILED', message: 'Could not check for updates right now.' });
   }

@@ -28,10 +28,10 @@ export async function installedVersion() {
 }
 
 /** Returns { current, latest, hasUpdate } — never throws. */
-export async function checkForUpdate() {
+export async function checkForUpdate({ fresh = false } = {}) {
   const current = await installedVersion();
   try {
-    const { latest } = await api('/api/app/latest');
+    const { latest } = await api(`/api/app/latest${fresh ? '?fresh=1' : ''}`);
     const hasUpdate = Boolean(isNative() && latest?.apkUrl && compareVersions(latest.version, current) > 0);
     return { current, latest, hasUpdate };
   } catch (err) {

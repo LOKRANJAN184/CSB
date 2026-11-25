@@ -98,9 +98,11 @@ function drawOfflineBanner() {
   draw();
 }
 
+// Checked when the app starts AND every time it comes back to the foreground.
 async function showUpdateBannerIfNeeded() {
   const r = await checkForUpdate();
-  if (!r.hasUpdate) return;
+  if (!r.hasUpdate || !els.banners) return;
+  els.update?.remove();
   els.update = h('div', { class: 'banner banner--update' }, icon('download'), `Version ${r.latest.version} is available`,
     h('button', { class: 'btn btn--primary btn--sm', onclick: () => openUpdateSheet(r) }, 'Update'));
   els.banners.append(els.update);
@@ -238,7 +240,7 @@ onBackButton(() => {
 onResume(() => {
   const s = store.session;
   if (s && s.expiresAt < Date.now()) logout('Your session has ended. Please log in again.');
-  else if (s) refreshOwnerBadges();
+  else if (s) { refreshOwnerBadges(); showUpdateBannerIfNeeded(); }
 });
 
 // ---------------------------------------------------------------------------
