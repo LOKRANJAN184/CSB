@@ -1,0 +1,9 @@
+{
+  "name": "Chendurar Sweets & Bakery",
+  "short_name": "Chendurar",
+  "start_url": "./#/sales",
+  "display": "standalone",
+  "background_color": "#f4f6f3",
+  "theme_color": "#2b54a0",
+  "icons": [{ "src": "images/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}

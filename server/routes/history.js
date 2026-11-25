@@ -1,44 +1,23 @@
 const express = require('express');
-const router = express.Router();
 const AuditLog = require('../models/AuditLog');
 const { authenticate, requireOwner } = require('../middleware/auth');
 
-// GET /api/history - Get audit logs (Owner only)
+const router = express.Router();
+
+// GET /api/history?module=Sales&page=1 — the owner's "Edit History"
 router.get('/', authenticate, requireOwner, async (req, res) => {
-  try {
-    const { date, module, action, limit = 100, page = 1 } = req.query;
+  const query = {};
+  if (req.query.module && req.query.module !== 'all') query.module = req.query.module;
+  if (req.query.date) query.recordDate = req.query.date;
+  if (req.branchId && req.branchId !== 'all') query.branchId = req.branchId;
 
-    const query = {};
-    if (date) query.recordDate = date;
-    if (module && module !== 'ALL') query.module = module;
-    if (action && action !== 'ALL') query.action = action;
-
-    const branchFilter = req.query.branchId !== undefined ? req.query.branchId : (req.headers['x-branch-id'] || req.branchId);
-    if (branchFilter && branchFilter !== 'all' && branchFilter !== 'ALL') {
-      query.branchId = branchFilter;
-    }
-
-    const parsedLimit = Math.min(parseInt(limit, 10) || 100, 200);
-    const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
-    const skip = (parsedPage - 1) * parsedLimit;
-
-    const total = await AuditLog.countDocuments(query);
-    const logs = await AuditLog.find(query)
-      .sort({ timestamp: -1 })
-      .skip(skip)
-      .limit(parsedLimit);
-
-    res.json({
-      success: true,
-      total,
-      page: parsedPage,
-      totalPages: Math.ceil(total / parsedLimit) || 1,
-      logs,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  const limit = 40;
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const [total, logs] = await Promise.all([
+    AuditLog.countDocuments(query),
+    AuditLog.find(query).sort({ timestamp: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+  ]);
+  res.json({ ok: true, logs, page, hasMore: page * limit < total });
 });
 
 module.exports = router;
-

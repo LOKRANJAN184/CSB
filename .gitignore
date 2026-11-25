@@ -1,32 +1,41 @@
 # Dependencies
 node_modules/
-package-lock.json.bak
 
-# Local Binaries and Embedded Tools (several GBs)
+# Local tools (portable Node/JDK/Android SDK/MongoDB — several GB)
 .tools/
 data/
 
-# Environment secrets
+# Secrets — NEVER commit these
 .env
-.env.local
+.env.*
+!.env.example
 atlas-credentials.env
 *.credentials*
+*.keystore
+*.jks
+keystore.properties
 
-# Build artifacts & temp files
-*.bak
+# Old local photo uploads (photos now live in MongoDB)
+uploads/
+
+# Build output
+*.apk
+*.aab
 *.log
+.vercel
 
-# Android & Gradle Build caches
-.gradle/
+# Android build caches (the android/ project itself IS committed)
 android/.gradle/
-android/app/build/
 android/build/
+android/app/build/
 android/captures/
 android/.idea/
+android/local.properties
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins/
 
-# OS specific files
+# OS
 .DS_Store
 Thumbs.db
-
-
-*.apk

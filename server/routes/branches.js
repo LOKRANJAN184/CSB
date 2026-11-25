@@ -1,242 +1,108 @@
 const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcryptjs');
 const Branch = require('../models/Branch');
 const User = require('../models/User');
-const { authenticate, requireOwner } = require('../middleware/auth');
-const { logAudit } = require('../services/auditService');
+const { authenticate, requireOwner, clearBranchCache } = require('../middleware/auth');
+const { badRequest, notFound, str } = require('../lib/http');
+const { logAudit } = require('../services/audit');
 
-// GET /api/branches - List active branches (for login dropdown & branch switcher)
+const router = express.Router();
+
+const publicBranch = (b) => ({ id: b._id, name: b.name, code: b.code, address: b.address, phone: b.phone, isActive: b.isActive });
+
+// GET /api/branches — public list for the login screen
 router.get('/', async (req, res) => {
-  try {
-    const branches = await Branch.find({ isActive: true }).sort({ code: 1 });
-    res.json({
-      success: true,
-      branches: branches.map((b) => ({
-        id: b._id,
-        _id: b._id,
-        name: b.name,
-        code: b.code,
-        address: b.address,
-        phone: b.phone,
-      })),
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  const branches = await Branch.find({ isActive: true }).sort({ code: 1 }).lean();
+  res.json({ ok: true, branches: branches.map(publicBranch) });
 });
 
-// GET /api/branches/all - List all branches with Shop Manager account info (Owner only)
-router.get('/all', authenticate, requireOwner, async (req, res) => {
-  try {
-    const branches = await Branch.find({}).sort({ code: 1 });
-    const managers = await User.find({ role: 'manager' }).select('name username branchId approvedDevice blockedDevices pendingDevice');
-
-    const result = branches.map((b) => {
-      const mgr = managers.find((m) => m.branchId && m.branchId.toString() === b._id.toString());
+// GET /api/branches/manage — owner: every branch with its manager + device status
+router.get('/manage', authenticate, requireOwner, async (req, res) => {
+  const [branches, managers] = await Promise.all([
+    Branch.find({}).sort({ code: 1 }).lean(),
+    User.find({ role: 'manager' }).lean(),
+  ]);
+  res.json({
+    ok: true,
+    branches: branches.map((b) => {
+      const m = managers.find((x) => String(x.branchId) === String(b._id));
       return {
-        id: b._id,
-        _id: b._id,
-        name: b.name,
-        code: b.code,
-        address: b.address,
-        phone: b.phone,
-        isActive: b.isActive,
-        manager: mgr
-          ? {
-              id: mgr._id,
-              name: mgr.name,
-              username: mgr.username,
-              approvedDevice: mgr.approvedDevice && mgr.approvedDevice.deviceId ? mgr.approvedDevice : null,
-              hasApprovedDevice: Boolean(mgr.approvedDevice && mgr.approvedDevice.deviceId),
-              pendingDevice: mgr.pendingDevice && mgr.pendingDevice.status === 'pending' ? mgr.pendingDevice : null,
-              blockedCount: (mgr.blockedDevices || []).length,
-            }
-          : null,
+        ...publicBranch(b),
+        manager: m && {
+          id: m._id,
+          name: m.name,
+          approvedDevice: m.approvedDevice?.deviceId ? m.approvedDevice : null,
+          pendingDevice: m.pendingDevice?.status === 'pending' && m.pendingDevice.deviceId ? m.pendingDevice : null,
+          blockedDevices: m.blockedDevices || [],
+          lockedUntil: m.lockedUntil && m.lockedUntil > new Date() ? m.lockedUntil : null,
+        },
       };
-    });
-
-    res.json({ success: true, branches: result });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    }),
+  });
 });
 
-// POST /api/branches - Create new branch (Owner only)
+const readBranchBody = (body) => ({
+  name: str(body.name, 80),
+  code: str(body.code, 20).toUpperCase().replace(/[^A-Z0-9_]/g, ''),
+  address: str(body.address, 200),
+  phone: str(body.phone, 20),
+});
+
+// POST /api/branches — owner: create
 router.post('/', authenticate, requireOwner, async (req, res) => {
-  try {
-    const { name, code, address, phone, managerUsername, managerPin } = req.body;
-    if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: 'Branch name is required.' });
-    }
+  const data = readBranchBody(req.body);
+  if (!data.name) throw badRequest('Branch name is required.');
+  if (!data.code) data.code = data.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+  if (await Branch.exists({ code: data.code })) throw badRequest(`Branch code "${data.code}" is already used.`);
 
-    const branchCode = (code || name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)).toUpperCase();
-
-    const existingCode = await Branch.findOne({ code: branchCode });
-    if (existingCode) {
-      return res.status(400).json({ success: false, message: `Branch code "${branchCode}" already exists.` });
-    }
-
-    const branch = await Branch.create({
-      name: name.trim(),
-      code: branchCode,
-      address: (address || '').trim(),
-      phone: (phone || '').trim(),
-      isActive: true,
-    });
-
-    // Create manager account for this branch
-    const uName = (managerUsername || `manager_${branchCode.toLowerCase()}`).toLowerCase().trim();
-    const pin = (managerPin || '8734').trim();
-    const hashedPin = await bcrypt.hash(pin, 10);
-
-    let mgr = await User.findOne({ username: uName });
-    if (!mgr) {
-      mgr = new User({
-        username: uName,
-        name: `Shop Manager (${branch.name})`,
-        role: 'manager',
-        branchId: branch._id,
-        pin: hashedPin,
-        password: hashedPin,
-        phone: branch.phone,
-      });
-      await mgr.save();
-    } else {
-      mgr.branchId = branch._id;
-      mgr.name = `Shop Manager (${branch.name})`;
-      mgr.pin = hashedPin;
-      mgr.password = hashedPin;
-      await mgr.save();
-    }
-
-    await logAudit({
-      branchId: branch._id,
-      branchName: branch.name,
-      module: 'Branch',
-      action: 'CREATE',
-      fieldName: 'Branch',
-      newValue: branch.name,
-      performedBy: req.user,
-      description: `Owner created new branch "${branch.name}" (Code: ${branch.code}) with manager account "${uName}".`,
-    });
-
-    res.json({
-      success: true,
-      message: `Branch "${branch.name}" created successfully.`,
-      branch,
-      manager: {
-        username: uName,
-        pin,
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  const branch = await Branch.create(data);
+  clearBranchCache();
+  await logAudit(req, { branchId: branch._id, branchName: branch.name, module: 'Branch', action: 'CREATE', fieldName: branch.name, newValue: branch.code, description: `Created branch "${branch.name}"` });
+  res.status(201).json({ ok: true, branch: publicBranch(branch) });
 });
 
-// PUT /api/branches/:id - Edit branch (Owner only)
+// PUT /api/branches/:id — owner: edit / activate / deactivate
 router.put('/:id', authenticate, requireOwner, async (req, res) => {
-  try {
-    const { name, address, phone, isActive } = req.body;
-    const branch = await Branch.findById(req.params.id);
-    if (!branch) {
-      return res.status(400).json({ success: false, message: 'Branch not found.' });
-    }
-
-    const oldName = branch.name;
-    if (name !== undefined) branch.name = name.trim();
-    if (address !== undefined) branch.address = address.trim();
-    if (phone !== undefined) branch.phone = phone.trim();
-    if (isActive !== undefined) branch.isActive = Boolean(isActive);
-
-    await branch.save();
-
-    await logAudit({
-      branchId: branch._id,
-      branchName: branch.name,
-      module: 'Branch',
-      action: 'UPDATE',
-      fieldName: 'BranchInfo',
-      oldValue: oldName,
-      newValue: `${branch.name} (Active: ${branch.isActive})`,
-      performedBy: req.user,
-      description: `Owner updated branch details for "${branch.name}".`,
-    });
-
-    res.json({
-      success: true,
-      message: `Branch "${branch.name}" updated successfully.`,
-      branch,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  const branch = await Branch.findById(req.params.id);
+  if (!branch) throw notFound('Branch not found.');
+  const data = readBranchBody(req.body);
+  if (data.name) branch.name = data.name;
+  branch.address = data.address;
+  branch.phone = data.phone;
+  if (typeof req.body.isActive === 'boolean') branch.isActive = req.body.isActive;
+  await branch.save();
+  clearBranchCache();
+  await logAudit(req, { branchId: branch._id, branchName: branch.name, module: 'Branch', action: 'UPDATE', fieldName: branch.name, description: `Updated branch "${branch.name}"` });
+  res.json({ ok: true, branch: publicBranch(branch) });
 });
 
-// POST /api/branches/:id/manager - Create or Reset Shop Manager Account (Owner only)
-router.post('/:id/manager', authenticate, requireOwner, async (req, res) => {
-  try {
-    const { pin, password, username, name } = req.body;
-    const branch = await Branch.findById(req.params.id);
-    if (!branch) {
-      return res.status(404).json({ success: false, message: 'Branch not found.' });
-    }
+// PUT /api/branches/:id/manager — owner: create the manager login or set a new PIN
+router.put('/:id/manager', authenticate, requireOwner, async (req, res) => {
+  const branch = await Branch.findById(req.params.id);
+  if (!branch) throw notFound('Branch not found.');
+  const pin = String(req.body.pin || '');
+  if (!/^\d{4,6}$/.test(pin)) throw badRequest('PIN must be 4–6 digits.');
+  const name = str(req.body.name, 80);
 
-    const targetPin = (pin || password || '8734').toString().trim();
-    if (targetPin.length < 4) {
-      return res.status(400).json({ success: false, message: 'PIN must be at least 4 digits.' });
-    }
-
-    let mgr = await User.findOne({ branchId: branch._id, role: 'manager' });
-    const targetUsername = (username || `manager_${branch.code.toLowerCase()}`).toLowerCase().trim();
-
-    const hashedPin = targetPin ? await bcrypt.hash(targetPin, 10) : null;
-    const hashedPass = password ? await bcrypt.hash(password, 10) : hashedPin;
-
-    if (!mgr) {
-      mgr = new User({
-        username: targetUsername,
-        name: name || `Shop Manager (${branch.name})`,
-        role: 'manager',
-        branchId: branch._id,
-        pin: hashedPin || (await bcrypt.hash('8734', 10)),
-        password: hashedPass || (await bcrypt.hash('8734', 10)),
-        phone: branch.phone,
-      });
-      await mgr.save();
-    } else {
-      if (username) mgr.username = targetUsername;
-      if (name) mgr.name = name;
-      if (hashedPin) mgr.pin = hashedPin;
-      if (hashedPass) mgr.password = hashedPass;
-      await mgr.save();
-    }
-
-    await logAudit({
+  let manager = await User.findOne({ role: 'manager', branchId: branch._id });
+  const hashed = await User.hashPin(pin);
+  if (!manager) {
+    manager = new User({
+      username: `manager_${branch.code.toLowerCase()}`,
+      name: name || `Manager – ${branch.name}`,
+      role: 'manager',
       branchId: branch._id,
-      branchName: branch.name,
-      module: 'Security',
-      action: 'RESET_CREDENTIALS',
-      fieldName: 'ManagerPIN',
-      newValue: `Updated for ${mgr.username}`,
-      performedBy: req.user,
-      description: `Owner reset credentials for Shop Manager of "${branch.name}".`,
+      pin: hashed,
     });
-
-    res.json({
-      success: true,
-      message: `Shop Manager for "${branch.name}" updated successfully.`,
-      manager: {
-        id: mgr._id,
-        username: mgr.username,
-        name: mgr.name,
-        branchId: branch._id,
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } else {
+    manager.pin = hashed;
+    manager.password = undefined; // retire the legacy password
+    manager.failedLogins = 0;
+    manager.lockedUntil = undefined;
+    if (name) manager.name = name;
   }
+  await manager.save();
+  await logAudit(req, { branchId: branch._id, branchName: branch.name, module: 'Security', action: 'RESET_CREDENTIALS', fieldName: 'Manager PIN', description: `Owner set a new manager PIN for "${branch.name}"` });
+  res.json({ ok: true });
 });
 
 module.exports = router;

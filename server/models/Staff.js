@@ -21,9 +21,10 @@ const staffSchema = new mongoose.Schema({
     default: 'Staff',
     trim: true, // e.g., 'Sweet Master', 'Bakery Chef', 'Counter Sales', 'Packaging'
   },
+  // Per-day salary in ₹. Only the owner can see or change it.
   dailySalary: {
     type: Number,
-    default: 500, // Per day salary in ₹ (set by Owner only)
+    default: 0,
   },
   wageType: {
     type: String,

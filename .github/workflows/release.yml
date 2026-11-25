@@ -1,0 +1,71 @@
+# Builds a signed Android APK and publishes it as a GitHub Release.
+#
+# Triggered by pushing a tag like v2.1.0 (run `npm run release` — see LEARN.md).
+# The app checks GitHub Releases on start-up and offers the new APK to users.
+name: Release APK
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create the release
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # so we can read the tag's message (release notes)
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # The GitHub runner already ships with the Android SDK (ANDROID_HOME).
+      # Gradle downloads any missing SDK platform automatically.
+
+      - run: npm ci
+      - run: npm run cap:sync
+
+      - name: Decode signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then echo "::error::Missing ANDROID_KEYSTORE_BASE64 secret"; exit 1; fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Build signed APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/Chendurar-Bakery.apk"
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          git for-each-ref "refs/tags/$TAG" --format='%(contents)' > notes.md
+          [ -s notes.md ] || echo "Bug fixes and improvements." > notes.md
+          gh release create "$TAG" Chendurar-Bakery.apk --title "$TAG" --notes-file notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Chendurar-Bakery-apk
+          path: Chendurar-Bakery.apk
