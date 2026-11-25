@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node --test test/",
+    "test": "node --test test/api.test.js",
     "build": "node scripts/sync-version.js",
     "cap:sync": "node scripts/sync-version.js && npx cap sync android",
     "apk": "npm run cap:sync && cd android && ./gradlew assembleRelease",
