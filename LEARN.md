@@ -235,7 +235,7 @@ lets us describe the shape of each document with a **schema**.
 | `branches` | a shop | name, code, address |
 | `users` | a login | role (owner/manager), hashed PIN(s), approvedDevice |
 | `staffs` | a worker | name, role, dailySalary, isActive, branchId |
-| `dailysales` | one branch, one day | systemSales, totalCash, totalGpay, expenses[], difference |
+| `dailysales` | one branch, one day | systemSales, totalCash, totalGpay, expenses[] (max 1 — one expense per day), difference |
 | `attendances` | one branch, one day | records[] = {staffId, status, inTime, outTime} |
 | `photos` | a bill photo | data (binary WebP), branchId |
 | `auditlogs` | one change | module, action, oldValue, newValue, performedBy |

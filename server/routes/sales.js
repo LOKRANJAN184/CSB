@@ -31,8 +31,10 @@ router.put('/:date', async (req, res) => {
   if (date > today()) throw badRequest('You cannot enter sales for a future date.');
 
   const body = req.body || {};
-  const expenses = (Array.isArray(body.expenses) ? body.expenses : [])
-    .slice(0, 50)
+  // Business rule: ONE expense entry per day (one amount, one note, one bill photo).
+  const rawExpenses = (Array.isArray(body.expenses) ? body.expenses : []).filter((e) => money(e.amount) > 0 || e.photoId);
+  if (rawExpenses.length > 1) throw badRequest('Only one expense entry is allowed per day.');
+  const expenses = rawExpenses
     .map((e) => ({
       amount: money(e.amount),
       note: str(e.note, 120) || 'Expense',

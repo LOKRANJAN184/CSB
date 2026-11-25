@@ -125,6 +125,9 @@ test('sales tally maths and permissions', async () => {
   const fix = await call('PUT', `/api/sales/${d}`, { ...mh(), body: { systemSales: 10000, totalCash: 6100, totalGpay: 3500, expenses: [{ amount: 400, note: 'Milk', photoId }] } });
   assert.equal(fix.record.isTallied, true);
 
+  const two = await call('PUT', `/api/sales/${d}`, { ...mh(), body: { systemSales: 1, expenses: [{ amount: 1, note: 'a' }, { amount: 2, note: 'b' }] } });
+  assert.equal(two.status, 400, 'only one expense per day');
+
   const past = await call('PUT', '/api/sales/2020-01-01', { ...mh(), body: { systemSales: 1 } });
   assert.equal(past.status, 403, 'manager cannot edit past days');
   const ownerPast = await call('PUT', '/api/sales/2020-01-01', { token: owner, headers: { 'X-Branch-Id': branchId }, body: { systemSales: 1, totalCash: 1 } });

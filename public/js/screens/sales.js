@@ -33,7 +33,13 @@ export default async function salesScreen(ctx) {
     totalCash: r.totalCash || 0,
     totalGpay: r.totalGpay || 0,
     notes: r.notes || '',
-    expenses: (r.expenses || []).map((e) => ({ amount: e.amount, note: e.note, photoId: e.photoId || null, legacyPhoto: e.photoUrl || '' })),
+  };
+  // ONE expense per day. Older records may have several; show them combined.
+  const old = r.expenses || [];
+  const expense = {
+    amount: old.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+    note: old.map((e) => e.note).filter(Boolean).join(', '),
+    photoId: old.find((e) => e.photoId)?.photoId || null,
   };
   let dirty = false;
   const markDirty = () => { dirty = true; updateTally(); };
@@ -42,7 +48,7 @@ export default async function salesScreen(ctx) {
   // ---------- Tally card ----------
   const tally = h('section', { class: 'tally', 'aria-live': 'polite', 'aria-label': 'Tally' });
   function updateTally() {
-    const totalExpenses = form.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const totalExpenses = Number(expense.amount) || 0;
     const accounted = totalExpenses + form.totalCash + form.totalGpay;
     const diff = Math.round((accounted - form.systemSales) * 100) / 100;
     const hasData = form.systemSales > 0 || accounted > 0;
@@ -65,77 +71,65 @@ export default async function salesScreen(ctx) {
     );
   }
 
-  // ---------- Expenses ----------
-  const expenseList = h('div');
-  function drawExpenses() {
-    mount(expenseList,
-      form.expenses.length
-        ? form.expenses.map((e, i) => expenseRow(e, i))
-        : h('p', { class: 'muted small', style: { padding: '8px 0' } }, canEdit ? 'No expenses yet. Add milk, ghee, gas, packing…' : 'No expenses.')
-    );
-  }
+  // ---------- Expense (one per day) ----------
+  const thumb = h('button', { type: 'button', class: 'thumb', disabled: !canEdit && !expense.photoId });
+  const fileInput = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: (ev) => attach(ev.target.files[0]) });
+  const removePhotoBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onclick: removePhoto }, 'Remove photo');
 
-  function expenseRow(e, i) {
-    const thumb = h('button', { type: 'button', class: 'thumb', 'aria-label': e.photoId ? 'View bill photo' : 'Attach bill photo', disabled: !canEdit && !e.photoId });
-    const fileInput = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: (ev) => attach(ev.target.files[0]) });
-
-    const paintThumb = async () => {
-      thumb.replaceChildren();
-      thumb.style.backgroundImage = '';
-      if (e.photoId) {
-        try { thumb.style.backgroundImage = `url("${await photoUrl(e.photoId)}")`; } catch { thumb.append(icon('alert')); }
-      } else {
-        thumb.append(icon('camera'));
-      }
-    };
-    thumb.onclick = async () => {
-      if (e.photoId) openPhotoViewer(await photoUrl(e.photoId), e.note || 'Bill photo');
-      else if (canEdit) fileInput.click();
-    };
-
-    async function attach(file) {
-      if (!file) return;
-      thumb.classList.add('is-uploading');
-      try {
-        const small = await compressImage(file);
-        const fd = new FormData();
-        fd.append('photo', small, 'bill.jpg');
-        const res = await api('/api/photos', { method: 'POST', body: fd, timeout: 60000 });
-        e.photoId = res.id;
-        markDirty();
-        await paintThumb();
-        toast('Photo attached — remember to save', 'good');
-      } catch (err) {
-        toastError(err);
-      } finally {
-        thumb.classList.remove('is-uploading');
-      }
+  async function paintThumb() {
+    thumb.replaceChildren();
+    thumb.style.backgroundImage = '';
+    thumb.setAttribute('aria-label', expense.photoId ? 'View bill photo' : 'Attach bill photo');
+    removePhotoBtn.hidden = !canEdit || !expense.photoId;
+    if (expense.photoId) {
+      try { thumb.style.backgroundImage = `url("${await photoUrl(expense.photoId)}")`; } catch { thumb.append(icon('alert')); }
+    } else {
+      thumb.append(icon('camera'));
     }
-
-    paintThumb();
-    return h('div', { class: 'expense' },
-      h('div', { class: 'expense__inputs' },
-        h('div', { class: 'money' }, h('input', {
-          class: 'input input--money', inputmode: 'decimal', placeholder: '0', 'aria-label': `Expense ${i + 1} amount`,
-          value: e.amount ? String(e.amount) : '', disabled: !canEdit,
-          oninput: (ev) => { ev.target.value = ev.target.value.replace(/[^\d.]/g, ''); e.amount = Number(ev.target.value) || 0; markDirty(); },
-          onfocus: (ev) => ev.target.select(),
-        })),
-        h('input', { class: 'input', placeholder: 'What for?', 'aria-label': `Expense ${i + 1} note`, value: e.note || '', maxlength: 120, disabled: !canEdit, oninput: (ev) => { e.note = ev.target.value; dirty = true; } })
-      ),
-      h('div', { class: 'expense__tools' },
-        thumb, fileInput,
-        canEdit && h('button', {
-          type: 'button', class: 'icon-btn', 'aria-label': 'Remove expense',
-          onclick: async () => {
-            if ((e.amount || e.photoId) && !(await confirmSheet({ title: 'Remove expense?', message: `${rupees(e.amount)} ${e.note || ''}`, confirmLabel: 'Remove', danger: true }))) return;
-            form.expenses.splice(i, 1); markDirty(); drawExpenses();
-          },
-        }, icon('trash'))
-      ),
-      e.legacyPhoto && !e.photoId && h('p', { class: 'small muted', style: { gridColumn: '1 / -1' } }, 'Old photo from the previous app version is no longer available.')
-    );
   }
+  thumb.onclick = async () => {
+    if (expense.photoId) openPhotoViewer(await photoUrl(expense.photoId), expense.note || 'Bill photo');
+    else if (canEdit) fileInput.click();
+  };
+
+  async function attach(file) {
+    if (!file) return;
+    thumb.classList.add('is-uploading');
+    try {
+      const small = await compressImage(file);
+      const fd = new FormData();
+      fd.append('photo', small, 'bill.jpg');
+      const res = await api('/api/photos', { method: 'POST', body: fd, timeout: 60000 });
+      expense.photoId = res.id;
+      markDirty();
+      await paintThumb();
+      toast('Photo attached — remember to save', 'good');
+    } catch (err) {
+      toastError(err);
+    } finally {
+      thumb.classList.remove('is-uploading');
+      fileInput.value = '';
+    }
+  }
+
+  async function removePhoto() {
+    if (!(await confirmSheet({ title: 'Remove bill photo?', message: 'The photo is deleted when you save.', confirmLabel: 'Remove', danger: true }))) return;
+    expense.photoId = null;
+    markDirty();
+    paintThumb();
+  }
+
+  const expenseCard = h('section', { class: 'card stack' },
+    moneyField({ label: 'Expense (total for the day)', value: expense.amount, disabled: !canEdit, onInput: (v) => { expense.amount = v; markDirty(); } }),
+    h('div', { class: 'field' },
+      h('label', { for: 'expense-note' }, 'What was it for?'),
+      h('input', { id: 'expense-note', class: 'input', maxlength: 120, placeholder: 'Milk, ghee, gas, packing…', value: expense.note, disabled: !canEdit, oninput: (e) => { expense.note = e.target.value; dirty = true; } })
+    ),
+    h('div', { class: 'hstack' }, thumb, fileInput,
+      h('div', { class: 'row__main' }, h('strong', { class: 'small' }, 'Bill photo'), h('span', { class: 'small muted' }, canEdit ? 'Tap to take or choose a photo' : '')),
+      removePhotoBtn)
+  );
+  paintThumb();
 
   // ---------- Save ----------
   const saveBtn = h('button', { class: 'btn btn--primary btn--block', onclick: () => busy(saveBtn, save) }, icon('check'), data.exists ? 'Update sales' : 'Save sales');
@@ -143,7 +137,7 @@ export default async function salesScreen(ctx) {
     try {
       const res = await api(`/api/sales/${date}`, {
         method: 'PUT',
-        body: { ...form, expenses: form.expenses.map(({ legacyPhoto, ...e }) => e) },
+        body: { ...form, expenses: expense.amount > 0 || expense.photoId ? [{ amount: expense.amount, note: expense.note, photoId: expense.photoId }] : [] },
       });
       dirty = false;
       saveBtn.lastChild.textContent = 'Update sales';
@@ -153,7 +147,6 @@ export default async function salesScreen(ctx) {
     }
   }
 
-  drawExpenses();
   updateTally();
 
   const savedBy = r.lastUpdatedBy?.name && h('p', { class: 'small muted' }, `Last saved by ${r.lastUpdatedBy.name}${r.updatedAt ? ' · ' + new Date(r.updatedAt).toLocaleString('en-IN', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' }) : ''}`);
@@ -169,10 +162,7 @@ export default async function salesScreen(ctx) {
         moneyField({ label: 'GPay / UPI', value: form.totalGpay, disabled: !canEdit, onInput: (v) => { form.totalGpay = v; markDirty(); } })
       )
     ),
-    h('section', { class: 'card' },
-      h('div', { class: 'card__title' }, 'Expenses', canEdit && h('button', { class: 'btn btn--soft btn--sm', onclick: () => { form.expenses.push({ amount: 0, note: '', photoId: null }); drawExpenses(); expenseList.querySelector('.expense:last-child input')?.focus(); } }, icon('plus'), 'Add')),
-      expenseList
-    ),
+    expenseCard,
     h('section', { class: 'card field' },
       h('label', { for: 'sales-notes' }, 'Notes'),
       h('textarea', { id: 'sales-notes', class: 'textarea', maxlength: 500, disabled: !canEdit, placeholder: 'Anything the owner should know', value: form.notes, oninput: (e) => { form.notes = e.target.value; dirty = true; } })

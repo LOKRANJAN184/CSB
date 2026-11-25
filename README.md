@@ -7,7 +7,7 @@ Daily sales tally, staff attendance and salary app for the shop — Android app 
 - **Learn how everything works:** [LEARN.md](LEARN.md)
 
 ## Features
-- **Sales tally** — system sales vs. cash + GPay + expenses, live "Tallied / Shortage / Excess", bill photos
+- **Sales tally** — system sales vs. cash + GPay + one expense per day (with bill photo), live "Tallied / Shortage / Excess"
 - **Attendance** — present / half day / absent with in & out times
 - **Records** — calendar showing which days tallied
 - **Reports (owner)** — monthly totals, staff salary (days × per-day rate), any date range, all branches, PDF
