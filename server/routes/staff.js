@@ -24,14 +24,18 @@ router.get('/', async (req, res) => {
   res.json({ ok: true, staff: list.map((s) => view(s, req.user.role === 'owner')) });
 });
 
+const cleanPhone = (v) => str(v, 20).replace(/\D/g, '').slice(0, 10);
+
 // POST /api/staff
 router.post('/', async (req, res) => {
   const name = str(req.body.name, 80);
   if (!name) throw badRequest('Name is required.');
+  const phone = cleanPhone(req.body.phone);
+  if (phone && phone.length !== 10) throw badRequest('Phone number must be 10 digits.');
   const isOwner = req.user.role === 'owner';
   const salary = isOwner ? money(req.body.dailySalary) : 0;
   const staff = await Staff.create({
-    branchId: req.branchId, name, role: str(req.body.role, 60) || 'Staff', phone: str(req.body.phone, 20),
+    branchId: req.branchId, name, role: str(req.body.role, 60) || 'Staff', phone,
     dailySalary: salary, wageRate: salary, wageType: 'daily', createdBy: req.user.name,
   });
   await logAudit(req, { module: 'Staff', action: 'CREATE', fieldName: `Staff: ${name}`, newValue: isOwner ? `${name} (₹${salary}/day)` : name, description: `Added staff member "${name}" (${staff.role})` });
@@ -47,7 +51,11 @@ router.put('/:id', async (req, res) => {
 
   if (req.body.name !== undefined) staff.name = str(req.body.name, 80) || staff.name;
   if (req.body.role !== undefined) staff.role = str(req.body.role, 60) || 'Staff';
-  if (req.body.phone !== undefined) staff.phone = str(req.body.phone, 20);
+  if (req.body.phone !== undefined) {
+    const phone = cleanPhone(req.body.phone);
+    if (phone && phone.length !== 10) throw badRequest('Phone number must be 10 digits.');
+    staff.phone = phone;
+  }
   if (typeof req.body.isActive === 'boolean') staff.isActive = req.body.isActive;
   if (isOwner && req.body.dailySalary !== undefined) {
     staff.dailySalary = money(req.body.dailySalary);

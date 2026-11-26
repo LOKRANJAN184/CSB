@@ -25,19 +25,26 @@ export default async function staffScreen(ctx) {
   function draw(staff) {
     if (!staff.length) return mount(list, empty('users', 'No staff yet.'));
     mount(list, h('section', { class: 'card card--flush' }, h('ul', { class: 'list' }, staff.map((s) =>
-      h('li', null, h('button', { class: 'row', onclick: () => edit(s), style: { opacity: s.isActive ? 1 : 0.55 } },
-        h('div', { class: 'avatar', 'aria-hidden': 'true' }, initials(s.name)),
-        h('div', { class: 'row__main' }, h('strong', null, s.name), h('span', null, [s.role, s.phone].filter(Boolean).join(' · '))),
-        !s.isActive ? h('span', { class: 'badge badge--muted' }, 'Left') : store.isOwner && h('span', { class: 'num small muted' }, `${rupees(s.dailySalary)}/day`),
-        icon('chevronRight')
+      h('li', null, h('div', { class: 'hstack', style: { gap: 0 } },
+        h('button', { class: 'row', onclick: () => edit(s), style: { flex: 1, minWidth: 0, opacity: s.isActive ? 1 : 0.55 } },
+          h('div', { class: 'avatar', 'aria-hidden': 'true' }, initials(s.name)),
+          h('div', { class: 'row__main' }, h('strong', null, s.name), h('span', null, [s.role, s.phone].filter(Boolean).join(' · '))),
+          !s.isActive ? h('span', { class: 'badge badge--muted' }, 'Left') : store.isOwner && h('span', { class: 'num small muted' }, `${rupees(s.dailySalary)}/day`),
+          icon('chevronRight')
+        ),
+        s.phone && h('a', {
+          class: 'icon-btn', href: `tel:${s.phone}`, 'aria-label': `Call ${s.name}`,
+          style: { color: 'var(--good)', marginRight: '6px' },
+        }, icon('call'))
       ))
     ))));
   }
 
   function edit(s = null) {
-    const f = { name: s?.name || '', role: s?.role || '', phone: s?.phone || '', dailySalary: s?.dailySalary || 0 };
+    const f = { name: s?.name || '', role: s?.role || '', phone: (s?.phone || '').replace(/\D/g, '').slice(0, 10), dailySalary: s?.dailySalary || 0 };
     const save = h('button', { class: 'btn btn--primary btn--block', onclick: () => busy(save, async () => {
       if (!f.name.trim()) return toast('Enter a name', 'bad');
+      if (f.phone && f.phone.length !== 10) return toast('Phone number must be 10 digits', 'bad');
       try {
         await api(s ? `/api/staff/${s.id}` : '/api/staff', { method: s ? 'PUT' : 'POST', body: f });
         sheet.close();
@@ -55,12 +62,43 @@ export default async function staffScreen(ctx) {
       try { await api(`/api/staff/${s.id}`, { method: 'PUT', body: { isActive: true } }); sheet.close(); toast(`${s.name} is back`, 'good'); load(); } catch (err) { toastError(err); }
     } }, 'Re-join staff'));
 
+    const phoneId = 'f' + Math.random().toString(36).slice(2, 8);
+    const callBtn = h('a', {
+      class: 'btn btn--soft', 'aria-label': 'Call staff',
+      style: { minHeight: '48px', padding: '0 14px', flexShrink: 0, textDecoration: 'none' },
+      onclick: (e) => { if (!f.phone) { e.preventDefault(); toast('Enter phone number first', 'bad'); } },
+    }, icon('call'), 'Call');
+    const syncCallBtn = () => {
+      const valid = f.phone.length > 0;
+      callBtn.href = valid ? `tel:${f.phone}` : '#';
+      callBtn.style.opacity = f.phone.length === 10 ? '1' : '0.45';
+      callBtn.setAttribute('aria-disabled', String(!valid));
+    };
+    syncCallBtn();
+
+    const phoneField = h('div', { class: 'field' },
+      h('label', { for: phoneId }, 'Phone (10 digits)'),
+      h('div', { class: 'hstack' },
+        h('input', {
+          id: phoneId, class: 'input num', type: 'tel', inputmode: 'numeric', maxlength: 10,
+          placeholder: '10-digit mobile number', value: f.phone, autocomplete: 'tel',
+          oninput: (e) => {
+            const clean = e.target.value.replace(/\D/g, '').slice(0, 10);
+            if (clean !== e.target.value) e.target.value = clean;
+            f.phone = clean;
+            syncCallBtn();
+          },
+        }),
+        callBtn
+      )
+    );
+
     const sheet = openSheet({
       title: s ? s.name : 'New staff member',
       body: h('div', { class: 'stack' },
         textField({ label: 'Name', value: f.name, onInput: (v) => (f.name = v), autocomplete: 'name', maxlength: 80 }),
         textField({ label: 'Work', value: f.role, placeholder: 'Sweet master, counter, packing…', onInput: (v) => (f.role = v), maxlength: 60 }),
-        textField({ label: 'Phone', value: f.phone, type: 'tel', inputmode: 'tel', onInput: (v) => (f.phone = v), maxlength: 15 }),
+        phoneField,
         store.isOwner && moneyField({ label: 'Per-day salary', value: f.dailySalary, onInput: (v) => (f.dailySalary = v), hint: 'Only you (the owner) can see this.' })
       ),
       actions,
