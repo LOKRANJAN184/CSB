@@ -2,6 +2,14 @@
   "appId": "com.chendurar.sweets",
   "appName": "Chendurar Sweets & Bakery",
   "webDir": "public",
+  "server": {
+    "url": "https://csb-three.vercel.app",
+    "cleartext": false,
+    "allowNavigation": [
+      "csb-three.vercel.app",
+      "*.vercel.app"
+    ]
+  },
   "android": {
     "allowMixedContent": false
   }
