@@ -34,7 +34,7 @@ export function renderLogin(root, { onLoggedIn, message }) {
     status
   );
 
-  const logo = h('img', { src: 'images/logo.png', alt: 'செந்தூரர் ஸ்வீட்ஸ் & பேக்கரி', width: 200, height: 130 });
+  const logo = h('img', { src: 'images/login-logo.jpg', alt: 'செந்தூரர் ஸ்வீட்ஸ் & பேக்கரி', width: 220, height: 170 });
   // Hidden developer option: long-press the logo to change the server address.
   let pressTimer;
   logo.addEventListener('pointerdown', () => (pressTimer = setTimeout(openServerSheet, 1200)));

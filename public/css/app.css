@@ -410,8 +410,8 @@ a.row:active, button.row:active { background: var(--surface-2); }
 }
 .login__brand { text-align: center; }
 .login__brand img {
-  width: 200px; height: auto; aspect-ratio: 1024 / 665; padding: 14px 18px; box-sizing: content-box;
-  background: #fff; border-radius: var(--r-lg); box-shadow: var(--shadow-2); /* white plaque keeps the logo readable in dark mode */
+  width: 220px; height: auto; aspect-ratio: 1024 / 783; padding: 8px 10px; box-sizing: content-box;
+  background: #000; border-radius: var(--r-lg); box-shadow: var(--shadow-2); object-fit: contain;
 }
 .login__brand h1 { margin-top: var(--s-3); font-size: 18px; font-weight: 600; color: var(--text-muted); }
 .login__card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: var(--s-4); }
