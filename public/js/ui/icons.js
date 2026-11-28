@@ -11,6 +11,7 @@ const ICONS = {
   calendar: s('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'),
   chart: s('<path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-8"/>'),
   menu: s('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>'),
+  hamburger: s('<path d="M4 6h16M4 12h16M4 18h16"/>'),
   chevronLeft: s('<path d="m15 18-6-6 6-6"/>'),
   chevronRight: s('<path d="m9 18 6-6-6-6"/>'),
   chevronDown: s('<path d="m6 9 6 6 6-6"/>'),

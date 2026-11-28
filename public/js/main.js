@@ -55,14 +55,27 @@ let sessionTimer;
 const els = {};
 function buildShell() {
   els.back = h('a', { class: 'icon-btn', 'aria-label': 'Back', hidden: true }, icon('chevronLeft'));
-  els.title = h('h1');
+  els.menuBtn = h('a', { class: 'icon-btn', href: '#/more', 'aria-label': 'Menu' }, icon('hamburger'));
+  els.title = h('h2');
   els.subtitle = h('p');
   els.branch = h('button', { class: 'branch-switch', hidden: true, onclick: openBranchPicker });
   els.banners = h('div');
   els.content = h('main', { class: 'content', id: 'main' });
   els.tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Main' });
+
+  const brand = h('div', { class: 'topbar__brand' },
+    h('img', { class: 'topbar__peacock', src: 'images/header-peacock.png', alt: '', width: 58, height: 44 }),
+    h('span', { class: 'topbar__name' }, 'Chendurar'),
+    h('span', { class: 'topbar__sub' }, 'Sweets & Bakery')
+  );
+
   mount(app, h('div', { class: 'shell' },
-    h('header', { class: 'topbar' }, els.back, h('div', { class: 'topbar__title' }, els.title, els.subtitle), els.branch),
+    h('header', { class: 'topbar' },
+      h('div', { class: 'topbar__left' }, els.back, els.menuBtn),
+      brand,
+      h('div', { class: 'topbar__right' }, els.branch)
+    ),
+    h('div', { class: 'pagebar' }, els.title, els.subtitle),
     els.banners,
     els.content,
     els.tabbar
@@ -130,6 +143,7 @@ async function route(force = false) {
 
   drawTabs(r.tab);
   els.back.hidden = true;
+  els.menuBtn.hidden = false;
   els.branch.hidden = !(store.isOwner && r.branch && store.branches.length > 1);
   els.branch.replaceChildren(store.branch?.name || 'Branch', icon('chevronDown'));
   // Each visit gets a brand-new container. If the previous screen is still
@@ -155,7 +169,7 @@ async function route(force = false) {
       els.title.textContent = title;
       els.subtitle.textContent = subtitle;
       document.title = `${title} · Chendurar`;
-      if (opts.back) { els.back.hidden = false; els.back.href = opts.back; }
+      if (opts.back) { els.back.hidden = false; els.back.href = opts.back; els.menuBtn.hidden = true; }
     },
   };
 
