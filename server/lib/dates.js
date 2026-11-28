@@ -20,9 +20,20 @@ const isMonth = (s) => typeof s === 'string' && MONTH_RE.test(s);
 /** Number of days between two 'YYYY-MM-DD' strings, inclusive. */
 const daysInclusive = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1;
 
+/** All 'YYYY-MM-DD' strings from `from` through `to`, inclusive. */
+const eachDate = (from, to) => {
+  const out = [];
+  const start = Date.parse(from + 'T00:00:00Z');
+  const end = Date.parse(to + 'T00:00:00Z');
+  for (let ms = start; ms <= end; ms += 86400000) {
+    out.push(new Date(ms).toISOString().slice(0, 10));
+  }
+  return out;
+};
+
 const daysInMonth = (month) => {
   const [y, m] = month.split('-').map(Number);
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 };
 
-module.exports = { today, isDate, isMonth, daysInclusive, daysInMonth };
+module.exports = { today, isDate, isMonth, daysInclusive, eachDate, daysInMonth };

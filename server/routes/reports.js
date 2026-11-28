@@ -4,7 +4,7 @@ const Attendance = require('../models/Attendance');
 const Staff = require('../models/Staff');
 const { authenticate, requireOwner, requireSingleBranch, signDownloadToken } = require('../middleware/auth');
 const { badRequest } = require('../lib/http');
-const { isDate, isMonth, daysInclusive, daysInMonth } = require('../lib/dates');
+const { isDate, isMonth, daysInclusive, eachDate, daysInMonth, today } = require('../lib/dates');
 const { buildReportPdf, inr, dmy } = require('../services/pdf');
 const { logAudit } = require('../services/audit');
 
@@ -51,8 +51,19 @@ async function salesForRange(req, from, to) {
     .sort({ date: 1 })
     .select('-expenses.photoFilename')
     .lean();
+  const dates = eachDate(from, to);
   const byBranch = branches.map((b) => {
-    const list = records.filter((r) => String(r.branchId) === String(b._id));
+    const byDate = new Map(records.filter((r) => String(r.branchId) === String(b._id)).map((r) => [r.date, r]));
+    const list = dates.map((date) => byDate.get(date) || {
+      date,
+      systemSales: 0,
+      totalExpenses: 0,
+      totalCash: 0,
+      totalGpay: 0,
+      totalAccounted: 0,
+      difference: 0,
+      isTallied: true,
+    });
     return { branchId: b._id, branchName: b.name, totals: sumSales(list), records: list };
   });
   return { byBranch, totals: sumSales(records) };
@@ -112,7 +123,9 @@ router.get('/monthly', requireOwner, async (req, res) => {
   const { month } = req.query;
   if (!isMonth(month)) throw badRequest('Invalid month.');
   const from = `${month}-01`;
-  const to = `${month}-${String(daysInMonth(month)).padStart(2, '0')}`;
+  const monthEnd = `${month}-${String(daysInMonth(month)).padStart(2, '0')}`;
+  const currentToday = today();
+  const to = month === currentToday.slice(0, 7) ? currentToday : monthEnd;
   const sales = await salesForRange(req, from, to);
   const attendance = req.branchId === 'all' ? null : await attendanceForRange(req.branchId, from, to);
   res.json({
